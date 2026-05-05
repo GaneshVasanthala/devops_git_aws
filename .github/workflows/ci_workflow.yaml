@@ -36,16 +36,16 @@ jobs:
       # ── STEP 4: Build Docker Image ─────────────────
       - name: Build Docker Image
         run: |
-          docker build -t $ECR_REPOSITORY:${{ github.sha }} .
-          echo "Image built: $ECR_REPOSITORY:${{ github.sha }}"
+          docker build -t app-image:${{ github.sha }} .
+          echo "Image built: app-image:${{ github.sha }}"
 
       # ── STEP 5: Tag Image ──────────────────────────
       - name: Tag Docker Image
         run: |
-          docker tag $ECR_REPOSITORY:${{ github.sha }} \
+          docker tag app-image:${{ github.sha }} \
             ${{ secrets.AWS_ACCOUNT_ID }}.dkr.ecr.${{ env.AWS_REGION }}.amazonaws.com/${{ env.ECR_REPOSITORY }}:${{ github.sha }}
 
-          docker tag $ECR_REPOSITORY:${{ github.sha }} \
+          docker tag app-image:${{ github.sha }} \
             ${{ secrets.AWS_ACCOUNT_ID }}.dkr.ecr.${{ env.AWS_REGION }}.amazonaws.com/${{ env.ECR_REPOSITORY }}:latest
 
       # ── STEP 6: Push Image to ECR ──────────────────
