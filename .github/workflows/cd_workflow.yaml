@@ -75,7 +75,7 @@ jobs:
             --set image.repository=${{ secrets.AWS_ACCOUNT_ID }}.dkr.ecr.${{ env.AWS_REGION }}.amazonaws.com/${{ env.ECR_REPOSITORY }} \
             --set image.tag=${{ env.IMAGE_TAG }} \
             --wait \
-            --timeout 15m \
+            --timeout 5m \
             
 
           echo "✅ Deployment successful!"
