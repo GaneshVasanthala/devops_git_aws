@@ -1,1 +1,87 @@
+# cd_workflow.yaml
+# Triggers AFTER CI pipeline completes
+# Deploys to Kubernetes using Helm
 
+name: CD Pipeline — Deploy to Kubernetes
+
+on:
+  workflow_run:
+    workflows: ["CI Pipeline — Build and Push to ECR"]
+    types:
+      - completed    # runs only after CI finishes
+
+env:
+  AWS_REGION:       us-east-2
+  ECR_REPOSITORY:   ganesh-terraform-app
+  EKS_CLUSTER:      ganesh-terraform-cluster
+  HELM_CHART:       ./helm-charts/my-app
+  NAMESPACE:        production
+
+jobs:
+  deploy:
+    name: Deploy to EKS
+    runs-on: ubuntu-latest
+
+    # Only deploy if CI pipeline PASSED
+    if: ${{ github.event.workflow_run.conclusion == 'success' }}
+
+    steps:
+
+      # ── STEP 1: Checkout code ──────────────────────
+      - name: Checkout Repository
+        uses: actions/checkout@v4
+
+      # ── STEP 2: Get image tag from CI ─────────────
+      - name: Download Image Tag
+        uses: actions/download-artifact@v4
+        with:
+          name: image-tag
+          run-id: ${{ github.event.workflow_run.id }}
+          github-token: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Read Image Tag
+        run: |
+          IMAGE_TAG=$(cat image-tag.txt)
+          echo "IMAGE_TAG=$IMAGE_TAG" >> $GITHUB_ENV
+          echo "Deploying image tag: $IMAGE_TAG"
+
+      # ── STEP 3: Login to AWS ───────────────────────
+      - name: Configure AWS Credentials
+        uses: aws-actions/configure-aws-credentials@v4
+        with:
+          aws-access-key-id:     ${{ secrets.AWS_ACCESS_KEY_ID }}
+          aws-secret-access-key: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
+          aws-region:            ${{ env.AWS_REGION }}
+
+      # ── STEP 4: Connect to EKS ────────────────────
+      - name: Update kubeconfig for EKS
+        run: |
+          aws eks update-kubeconfig \
+            --region ${{ env.AWS_REGION }} \
+            --name ${{ env.EKS_CLUSTER }}
+
+      # ── STEP 5: Install Helm ──────────────────────
+      - name: Install Helm
+        uses: azure/setup-helm@v3
+        with:
+          version: v3.12.0
+
+      # ── STEP 6: Deploy using Helm ─────────────────
+      - name: Deploy to Kubernetes using Helm
+        run: |
+          helm upgrade --install my-app ${{ env.HELM_CHART }} \
+            --namespace ${{ env.NAMESPACE }} \
+            --create-namespace \
+            --set image.repository=${{ secrets.AWS_ACCOUNT_ID }}.dkr.ecr.${{ env.AWS_REGION }}.amazonaws.com/${{ env.ECR_REPOSITORY }} \
+            --set image.tag=${{ env.IMAGE_TAG }} \
+            --wait \
+            --timeout 5m \
+            --atomic
+
+          echo "✅ Deployment successful!"
+
+      # ── STEP 7: Verify Deployment ─────────────────
+      - name: Verify Deployment
+        run: |
+          kubectl get pods -n ${{ env.NAMESPACE }}
+          kubectl get services -n ${{ env.NAMESPACE }}
