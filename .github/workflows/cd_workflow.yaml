@@ -14,7 +14,7 @@ env:
   AWS_REGION:       us-east-2
   ECR_REPOSITORY:   ganesh-terraform-app
   EKS_CLUSTER:      ganesh-terraform-app
-  HELM_CHART:       helm-charts/my-app
+  HELM_CHART:       ./helm-charts/my-app
   NAMESPACE:        production
 
 jobs:
